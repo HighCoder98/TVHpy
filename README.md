@@ -5,7 +5,7 @@ Python client for the Tvheadend API
 
 1. Installation
 ---------------
-Installrequired python modules:
+Install required python modules:
 ```
 requests
 simplejson
