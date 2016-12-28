@@ -32,3 +32,5 @@ API_CORE = ApiCore()
     for rec in API_CORE.get_finished_recordings():
         print rec["disp_title"]
 ```
+
+For all values of the models see [the wiki](https://github.com/HighCoder98/TVHpy/wiki/Models)
