@@ -25,12 +25,10 @@ API_ADDRESS = "http://<your-address-here>:9981/"
 
 3. Use the code
 ---------------
-Start by importing the ApiCore
 ```python
-from ApiCore import ApiCore
-API_CORE = ApiCore()
-    for rec in API_CORE.get_finished_recordings():
-        print rec["disp_title"]
+import TVHApiClient
+for rec in TVHApiClient.get_finished_recordings():
+    print rec["disp_title"]
 ```
 
 For all values of the models see [the wiki](https://github.com/HighCoder98/TVHpy/wiki/Models)
