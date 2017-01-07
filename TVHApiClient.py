@@ -10,6 +10,11 @@ import simplejson
 import requests
 import tvheadend_api_lib.config as config
 
+if config.API_IS_SELFSIGNED:
+    requests.packages.urllib3.disable_warnings()
+
+verify_ssl = not config.API_IS_SELFSIGNED
+
 def convert_unix_to_date(unix):
     """
     Converts the given unix timestamp to datetime
@@ -67,7 +72,7 @@ def api_post_call(url, data):
     Makes a POST request to the API
     """
 
-    response = requests.post(config.API_ADDRESS + url,
+    response = requests.post(config.API_ADDRESS + url, verify=verify_ssl,
                              data=data, auth=(config.API_USER, config.API_PASSWORD))
 
     resp = simplejson.loads(response.text)
@@ -81,7 +86,7 @@ def api_get_call(url, params=None):
     Makes a GET request to the API
     """
 
-    response = requests.get(config.API_ADDRESS + url,
+    response = requests.get(config.API_ADDRESS + url, verify=verify_ssl,
                             params=params, auth=(config.API_USER, config.API_PASSWORD))
 
     resp = simplejson.loads(response.text)
@@ -237,16 +242,13 @@ def schedule_recording(event_id):
         "config_uuid": ""
     }
 
-    success = False
     resp = api_post_call("api/dvr/entry/create_by_event", data)
-    if not resp:
-        success = True
 
-    return success
+    return check_if_scheduled_by_event(event_id)
 
-def search_event_by_title(title, start=0, limit=500):
+def get_event_by_title(title, start=0, limit=500):
     """
-    Searches for an event by the given title
+    Returns an event by the given title
     """
 
     data = {
@@ -257,39 +259,115 @@ def search_event_by_title(title, start=0, limit=500):
 
     return api_post_call("api/epg/events/grid", data)
 
-def cancel_current_recording(recording_id):
+def get_event_by_id(event_id, start=0, limit=500):
+    """
+    Searches for an event by the given id
+    """
+
+    found_event = None
+
+    for channel in get_channels():
+        for event in get_events_by_channel(channel["uuid"], start=start, limit=limit):
+            if str(event["eventId"]) == str(event_id):
+                found_event = event
+
+    return found_event
+
+def get_recording_by_id(dvr_id):
+    """
+    Returns the recording by the given id
+    """
+
+    recordings = []
+
+    for rec in get_upcoming_recordings():
+        if rec["uuid"] == dvr_id:
+            return rec
+        recordings.append(rec)
+
+    for rec in get_current_recordings():
+        if rec["uuid"] == dvr_id:
+            return rec
+        recordings.append(rec)
+
+    for rec in get_failed_recordings():
+        if rec["uuid"] == dvr_id:
+            return rec
+        recordings.append(rec)
+
+    for rec in get_finished_recordings():
+        if rec["uuid"] == dvr_id:
+            return rec
+        recordings.append(rec)
+
+    for rec in recordings:
+        if rec["uuid"] == dvr_id:
+            return rec
+
+    return None
+
+def cancel_current_recording_by_dvr(dvr_id):
     """
     Cancels the given recording
     """
 
     data = {
         "uuid": {
-            recording_id
+            dvr_id
         }
     }
 
-    success = False
+    if get_recording_by_id(dvr_id) is None:
+        return False
 
-    resp = api_post_call("api/dvr/entry/cancel", data)
-    if not resp:
-        success = True
+    api_post_call("api/dvr/entry/cancel", data)
+    return not check_if_scheduled_by_dvr(dvr_id)
 
-    return success
-
-def delete_upcoming_recording(recording_id):
+def delete_recording_by_dvr(dvr_id):
     """
-    Deletes the given upcoming recording_id
+    Deletes the given upcoming recording by dvr
     """
 
     data = {
         "uuid": {
-            recording_id
+            dvr_id
         }
     }
 
-    success = False
-    resp = api_post_call("api/idnode/delete", data)
-    if not resp:
-        success = True
+    if get_recording_by_id(dvr_id) is None:
+        return False
 
-    return success
+    api_post_call("api/idnode/delete", data)
+    return not check_if_scheduled_by_dvr(dvr_id)
+
+def check_if_scheduled_by_event(event_id):
+    """
+    Checks if the given event is scheduled for recording
+    """
+
+    #dvrState
+    #dvrUuid
+
+    for rec in get_upcoming_recordings():
+        if str(rec["broadcast"]) == str(event_id):
+            return True
+
+    for rec in get_current_recordings():
+        if str(rec["broadcast"]) == str(event_id):
+            return True
+
+    return False
+
+def check_if_scheduled_by_dvr(dvr_id):
+    """
+    Checks if the given event is scheduled for recording
+    """
+    for rec in get_upcoming_recordings():
+        if rec["uuid"] == dvr_id:
+            return True
+
+    for rec in get_current_recordings():
+        if rec["uuid"] == dvr_id:
+            return True
+
+    return False
