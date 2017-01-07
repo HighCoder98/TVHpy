@@ -1,7 +1,7 @@
 # TVHpy
 Python client for the Tvheadend API
 
-**NOTE: Only tested with Tvheadend version 4.08**
+**NOTE: tested with Tvheadend version 4.08 and 4.09**
 
 1. Installation
 ---------------
